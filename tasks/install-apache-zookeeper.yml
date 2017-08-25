@@ -1,0 +1,66 @@
+# (c) 2017 DataNexus Inc.  All Rights Reserved
+---
+# first, setup a fact that indicates whether or not we're uploading the
+# Apache Zookeeper distribution from a local file on the Ansible node
+- set_fact:
+    install_from_dir: "{{not(local_zk_file is undefined or local_zk_file is none or local_zk_file | trim == '')}}"
+# download and unpack the Apache Zookeeper distribution
+- block:
+  # if we're not installing Zookeeper from a local directory then we're installing
+  # from a repository (either a local repository or the standard Apache Zookeeper
+  # repository)
+  - name: Download zookeeper distribution to /tmp
+    get_url:
+      url: "{{zookeeper_url}}"
+      dest: /tmp
+      mode: 0644
+      validate_certs: no
+    environment: "{{environment_vars | default({})}}"
+  - set_fact:
+      local_filename: "{{zookeeper_url | basename}}"
+  when: not(install_from_dir)
+# otherwise, if we're installing from a local file on the Ansible node
+# that we're running this playbook from, copy over the file from the Ansible node
+# to a temporary directory and and unpack the Apache Zookeeper distribution from
+# that file
+- block:
+  - name: Copy zookeeper files from a local directory to /tmp
+    copy:
+      src: "{{local_zk_file}}"
+      dest: "/tmp"
+      mode: 0644
+  - set_fact:
+      local_filename: "{{local_zk_file | basename}}"
+  when: install_from_dir
+# now that our file is downloaded (or uploaded, as the case may be)
+# unpack it into the installation directory
+- block:
+  - name: Create "{{zookeeper_dir}}"
+    file:
+      path: "{{zookeeper_dir}}"
+      state: directory
+      owner: "{{zookeeper_user}}"
+      group: "{{zookeeper_group}}"
+  - name: Unpack zookeeper distribution into "{{zookeeper_dir}}"
+    unarchive:
+      copy: no
+      src: "/tmp/{{local_filename}}"
+      dest: "{{zookeeper_dir}}"
+      extra_opts: [ "--strip-components=1" ]
+      owner: "{{zookeeper_user}}"
+      group: "{{zookeeper_group}}"
+  become: true
+# Now that we've installed the packages that we need, setup the appropriate `log`
+# directory for Zookeeper and finish by setting up some facts that we'll need later
+# in our playbook
+- name: Ensure zookeeper data directory exists
+  become: true
+  file:
+    path: "{{zookeeper_data_dir | default('/var/lib')}}/zookeeper"
+    state: directory
+    owner: "{{zookeeper_user}}"
+    group: "{{zookeeper_group}}"
+- name: Set values for zookeper_bin_dir and zookeeper_config_dir
+  set_fact:
+    zookeeper_bin_dir: "{{zookeeper_dir}}/bin"
+    zookeeper_config_dir: "{{zookeeper_dir}}/conf"

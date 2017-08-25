@@ -1,0 +1,14 @@
+# (c) 2017 DataNexus Inc.  All Rights Reserved
+---
+- name: Create zookeeper group
+  become: true
+  group:
+    name: "{{zookeeper_group}}"
+    system: yes
+- name: Create zookeeper user
+  become: true
+  user:
+    name: "{{zookeeper_user}}"
+    group: "{{zookeeper_group}}"
+    createhome: no
+    system: yes

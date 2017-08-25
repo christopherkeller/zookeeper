@@ -1,0 +1,48 @@
+# (c) 2017 DataNexus Inc.  All Rights Reserved
+#
+# Defaults that are necessary for all deployments of
+# zookeeper
+---
+# variables that are necessary for all Zookeeper deployments
+application: zookeeper
+
+zookeeper_dir: /opt/zookeeper
+zookeeper_data_dir: /data
+zookeeper_data_log_dir: /data/log
+zookeeper_package_list: ["java-1.8.0-openjdk", "java-1.8.0-openjdk-devel"]
+
+zookeeper_user: zookeeper
+zookeeper_group: zookeeper
+
+# the version and distribution URL
+zookeeper_version: "3.4.9"
+zookeeper_url: "https://www.apache.org/dist/zookeeper/zookeeper-{{zookeeper_version}}/zookeeper-{{zookeeper_version}}.tar.gz"
+
+# path used to access private keys (defaults to the current working directory)
+private_key_path: "{{playbook_dir}}"
+
+# used to set any JVM flags that should be used as part of the ZK configuration
+zookeeper_jvm_flags: "-Xmx1g"
+
+# this variable defines the default ensemble that will be created when
+# deploying to an AWS or OpenStack environment; the value defined here will
+# result in the deployment of a three-node Zookeeper ensemble
+node_map:
+  - { application: zookeeper, count: 3 }
+
+# and define a set of application-specific security group rules; this list of
+# dictionary entries is used when setting up an application-specific security
+# on the network used by this application; the rules defined here allow for:
+#
+#  - internode communication on port 2888 (follower communications if leader)
+#  - internode communication on port 3888 (used leader election)
+#  - client connections via port 2181
+#
+# this set of rules should, more than likely, not be overridden; if it is
+# overridden, then care should be taken to at least maintain this default list
+# of application-specific security group rules or the nodes in the cluster may
+# not be able to communicate with each other
+application_sg_rules:
+  - { proto: tcp, from_port: 2888, to_port: 2888, cidr_ip: "{{internal_subnet}}" }
+  - { proto: tcp, from_port: 3888, to_port: 3888, cidr_ip: "{{internal_subnet}}" }
+  - { proto: tcp, from_port: 2181, to_port: 2181, cidr_ip: "{{internal_subnet}}" }
