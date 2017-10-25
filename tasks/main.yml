@@ -1,9 +1,9 @@
 # (c) 2017 DataNexus Inc.  All Rights Reserved
 ---
-- include: install-required-packages.yml static=no
-- include: add-zookeeper-user.yml static=no
-- include: install-apache-zookeeper.yml static=no
+- include_tasks: install-required-packages.yml
+- include_tasks: add-zookeeper-user.yml
+- include_tasks: install-apache-zookeeper.yml
 - include_role: name=configure-zookeeper-nodes
-- include: create-zookeeper-service.yml static=no
-- include: enable-zookeeper-service.yml static=no
-- include: start-zookeeper-service.yml static=no
+- include_tasks: create-zookeeper-service.yml
+- include_tasks: enable-zookeeper-service.yml
+- include_tasks: start-zookeeper-service.yml
