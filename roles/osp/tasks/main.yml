@@ -29,7 +29,6 @@
 - set_fact:
     role_nodes: "{{(role_nodes | default([])) + (os_inventory_json | json_query('[\"meta-Role_' + item + '\"]')).0}}"
   with_items: "{{application_roles}}"
-
 # now that we've built our lists of matching nodes, check to see if we have
 # any instances that match all of our input tags; we also set a few facts here
 # that are used when launching instances (below) if no matching nodes are found

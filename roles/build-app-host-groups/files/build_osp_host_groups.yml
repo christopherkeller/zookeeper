@@ -14,10 +14,8 @@
 - set_fact:
     application_nodes: "{{(os_inventory_json | json_query('[\"meta-Application_' + hg_item_name + '\"]')).0}}"
     role_nodes: "{{(os_inventory_json | json_query('[\"meta-Role_' + hg_item_role + '\"]')).0}}"
-
 - set_fact:
     app_nodes: "{{cloud_nodes | intersect(tenant_nodes) | intersect(project_nodes) | intersect(dataflow_nodes) | intersect(domain_nodes) | intersect(application_nodes) | intersect(cluster_nodes) | intersect(role_nodes)}}"
-
 # if a role was defined as part of this host group item, then run the
 # tasks this block
 - block:

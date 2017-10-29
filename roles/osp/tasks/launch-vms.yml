@@ -128,14 +128,12 @@
       content: "{{keypair.key.public_key}}"
       mode: 0400
   when: not(existing_key.stat.exists)
-
 # from the matching `node_map` entries, build up a list of the role for each
 # node we'll be creating; first set  acouple of facts we'll need in the next
 # few tasks
 - set_fact:
     node_role_list: []
     nic_list: "{{ (internal_uuid != external_uuid) | ternary([{ 'net-id': internal_uuid }, { 'net-id': external_uuid }], [{ 'net-id': external_uuid }]) }}"
-
 - name: Build up a list of roles (per node being created)
   include_tasks: build-role-list.yml
   with_items: "{{node_map | selectattr('application', 'equalto', application) | list}}"
@@ -231,7 +229,6 @@
       volumes: "{{project}}_{{application}}_{{node_role_list[item | int]}}_{{cluster | default('a')}}_{{item}}"
     register: osp_multiple
     with_sequence: start=0 end="{{(node_role_list | length) - 1}}"
-
   # setup a floating IP address for each instance from the float_pool
   - name: assigning floating IPs to instances
     os_floating_ip:
