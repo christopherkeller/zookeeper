@@ -22,10 +22,12 @@
           node_map_entries: "{{node_map | selectattr('application', 'equalto', application) | list}}"
       # if more than one node_map entry was found or no matching node_map
       # entries were found, then it's an error
-      - fail:
+      - name: Fail playbook run if multiple zookeeper node_map entries were found
+        fail:
           msg: "Multiple {{application}} node_map entries found"
         when: node_map_entries | length > 1
-      - fail:
+      - name: Fail playbook run if no zookeeper node_map entries were found
+        fail:
           msg: "No {{application}} node_map entries found"
         when: node_map_entries | length == 0
       # build the zookeeper host group from existing inventory
