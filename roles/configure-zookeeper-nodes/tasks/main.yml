@@ -5,35 +5,36 @@
 # data directory
 - set_fact:
     num_hosts: "{{(zookeeper_nodes + (existing_nodes | default([]))) | length}}"
+
 - block:
-  - name: Copy example configuration file to new zoo.cfg file
+  - name: ZOOKEEPER OVERLAY | Copy example configuration file to new zoo.cfg file
     copy:
       remote_src: true
       src: "{{zookeeper_config_dir}}/zoo_sample.cfg"
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       owner: "{{zookeeper_user}}"
       group: "{{zookeeper_group}}"
-  - name: Configure zookeeper server to use the defined data directory
+  - name: ZOOKEEPER OVERLAY | Configure zookeeper server to use the defined data directory
     lineinfile:
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       regexp: "^dataDir"
       line: "dataDir={{zookeeper_data_dir | default('/var/lib')}}/zookeeper"
-  - name: Configure zookeeper server to use the defined data log directory
+  - name: ZOOKEEPER OVERLAY | Configure zookeeper server to use the defined data log directory
     lineinfile:
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       regexp: "^dataLogDir"
       line: "dataLogDir={{zookeeper_data_log_dir}}/zookeeper"
-  - name: Configure the zookeeper clientPort to only listen on {{api_iface}}
+  - name: ZOOKEEPER OVERLAY | Configure the zookeeper clientPort to only listen on {{api_iface}}
     lineinfile:
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       line: "clientPortAddress={{data_addr}}"
       insertafter: "^clientPort="
-  - name: Configure the maximum number of client connections
+  - name: ZOOKEEPER OVERLAY | Configure the maximum number of client connections
     lineinfile:
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       regexp: "^(#)?maxClientCnxns="
       line: "maxClientCnxns=256"
-  - name: Ensure zookeeper data and log directories exist
+  - name: ZOOKEEPER OVERLAY | Ensure zookeeper data and log directories exist
     file:
       path: "{{item}}"
       state: directory
@@ -47,26 +48,27 @@
 # then use them to configure the JVM that will be used to run
 # our Zookeeper instance
 - block:
-  - name: Ensure that the java.env file exists
+  - name: ZOOKEEPER OVERLAY | Ensure that the java.env file exists
     file:
       path: "{{zookeeper_config_dir}}/java.env"
       state: touch
       owner: "{{zookeeper_user}}"
       group: "{{zookeeper_group}}"
-  - name: Add configuration from zookeeper_jvm_flags variable to the java.env file
+  - name: ZOOKEEPER OVERLAY | Add configuration from zookeeper_jvm_flags variable to the java.env file
     lineinfile:
       dest: "{{zookeeper_config_dir}}/java.env"
       regexp: "^export JVMFLAGS="
       line: "export JVMFLAGS='{{zookeeper_jvm_flags}}'"
   become: true
   when: not (zookeeper_jvm_flags is undefined or zookeeper_jvm_flags is none or zookeeper_jvm_flags | trim == '')
+
 # if more than one zookeeper node was passed in, then setup
 # the zookeeper nodes we're provisioning as an ensemble
 - block:
   - set_fact:
       existing_zk_nodes: "{{(existing_nodes | default([])) | map('extract', hostvars, [('ansible_' + data_iface), 'ipv4', 'address']) | list}}"
       zk_nodes: "{{zookeeper_nodes | map('extract', hostvars, [('ansible_' + data_iface), 'ipv4', 'address']) | list}}"
-  - name: "Configure the zookeeper cluster timeouts"
+  - name: ZOOKEEPER OVERLAY | Configure the zookeeper cluster timeouts
     lineinfile:
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       regexp: "^{{item.key}}"
@@ -74,20 +76,20 @@
     with_items:
       - { key: 'initLimit', val: '5' }
       - { key: 'syncLimit', val: '2' }
-  - name: "Add existing cluster node entries (if any)"
+  - name: ZOOKEEPER OVERLAY | Add existing cluster node entries (if any)
     lineinfile:
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       regexp: "^server.{{hostvars[item]['ensemble_id']}}"
       line: "server.{{hostvars[item]['ensemble_id']}}={{item}}:2888:3888"
     with_items: "{{existing_zk_nodes}}"
     when: (hostvars[item]['ensemble_id'] | default('')) != ''
-  - name: "Configure the zookeeper cluster addresses"
+  - name: ZOOKEEPER OVERLAY | Configure the zookeeper cluster addresses
     lineinfile:
       dest: "{{zookeeper_config_dir}}/zoo.cfg"
       regexp: "^server.{{item.0 + ((existing_node_count | default('0')) | int)}}"
       line: "server.{{item.0 + ((existing_node_count | default('0')) | int)}}={{item.1}}:2888:3888"
     with_indexed_items: "{{zk_nodes | default([])}}"
-  - name: "Setup the 'myid' file for this zookeeper node"
+  - name: ZOOKEEPER OVERLAY | Setup the 'myid' file for this zookeeper node
     lineinfile:
       dest: "{{zookeeper_data_dir | default('/var/lib')}}/zookeeper/myid"
       create: yes
