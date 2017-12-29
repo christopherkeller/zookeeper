@@ -1,0 +1,29 @@
+# (c) 2016 DataNexus Inc.  All Rights Reserved.
+#
+# discover AWS inventory
+---
+- name: ZOOKEEPER OVERLAY | setting key_path
+  set_fact: key_path="{{ ansible_env.PWD }}"
+  when: key_path is not defined
+
+- name: ZOOKEEPER OVERLAY | discovering {{ application }} nodes
+  ec2_instance_facts:
+    region: "{{ region }}"
+    filters:
+      instance-state-name: running
+      "tag:Tenant": "{{ tenant }}"
+      "tag:Project": "{{ project }}"
+      "tag:Domain": "{{ domain }}"
+      "tag:Application": zookeeper
+      "tag:Cluster": "{{ cluster | default ('a') }}"
+      "tag:Dataflow": "{{ dataflow | default ('none') }}"
+  register: zookeeper_instances
+  when: cloud == 'aws'
+
+- name: ZOOKEEPER OVERLAY | building zookeeper host group
+  add_host: hostname="{{ item }}" groupname=zookeeper ansible_user="{{ user }}" ansible_ssh_private_key_file="{{ key_path }}/{{cloud }}-{{ region }}-{{ project }}-{{ application }}-{{ domain }}-private-key.pem"
+  with_items: "{{ zookeeper_instances.instances | map (attribute='private_ip_address') | list }}"
+  when:
+    - cloud == 'aws'
+    - zookeeper_instances is defined
+    - zookeeper_instances.instances|length > 0

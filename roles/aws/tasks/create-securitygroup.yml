@@ -1,0 +1,32 @@
+# (c) 2016 DataNexus Inc.  All Rights Reserved.
+#
+# create AWS postgresql security group rules
+---
+- name: ZOOKEEPER OVERLAY | creating zookeeper security group
+  local_action:
+    module: ec2_group
+    name: "dnsg_{{ project }}_zookeeper_private_internal"
+    description: "zookeeper ingress and unrestricted egress rules (ansible)"
+    vpc_id: "{{ specified_vpc.vpcs.0.id }}"
+    region: "{{ region }}"
+    rules:
+      # client connections via port 2181
+      - proto: tcp
+        from_port: 2181
+        to_port: 2181
+        cidr_ip: "{{ internal_subnet }}"
+      # internode communication on port 2888 (follower communications if leader)
+      - proto: tcp
+        from_port: 2888
+        to_port: 2888
+        cidr_ip: "{{ internal_subnet }}"
+      # internode communication on port 3888 (used leader election)
+      - proto: tcp
+        from_port: 3888
+        to_port: 3888
+        cidr_ip: "{{ internal_subnet }}"    
+    rules_egress:
+      # Allow all outbound
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: sg_zookeeper

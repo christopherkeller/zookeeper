@@ -1,0 +1,153 @@
+#!/usr/bin/env ansible-playbook
+#
+# (c) 2016 DataNexus Inc.  All Rights Reserved.
+---
+- name: ZOOKEEPER OVERLAY | discovering {{ cloud }} networking
+  tags:
+    - zookeeper
+    - vm
+  hosts: localhost
+  vars_files:
+    - vars/zookeeper.yml
+  gather_facts: no
+  tasks:
+    - include_vars: "{{ configuration }}"
+      when: configuration is defined
+      
+    - include_role:
+        name: aws
+        tasks_from: discover-vpc
+      when: cloud == 'aws'  
+
+- name: ZOOKEEPER OVERLAY | creating {{ cloud }} security groups
+  tags:
+    - zookeeper
+    - vm
+  hosts: localhost
+  gather_facts: no
+  tasks:
+    - include_vars: "{{ configuration }}"
+      when: configuration is defined
+      
+    - include_role:
+        name: aws
+        tasks_from: create-securitygroup
+      when: cloud == 'aws'  
+  
+- name: ZOOKEEPER OVERLAY | launching VM
+  tags: vm
+  vars_files:
+    - vars/zookeeper.yml
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  tasks:
+    - include_vars: "{{ configuration }}"
+      when: configuration is defined
+      
+    - include_role:
+        name: aws
+        tasks_from: launch-vm
+      when: cloud == 'aws'
+    - include_role:
+        name: osp
+        tasks_from: launch-vm
+      when: cloud == 'osp'  
+
+- name: ZOOKEEPER OVERLAY | applying {{ cloud }} security groups
+  tags:
+    - zookeeper
+  hosts: localhost
+  vars_files:
+    - vars/zookeeper.yml
+  gather_facts: no
+  tasks:
+    - include_vars: "{{ configuration }}"
+      when: configuration is defined
+      
+    - include_role:
+        name: aws
+        tasks_from: apply-securitygroup
+      when: cloud == 'aws'
+
+- name: ZOOKEEPER OVERLAY | gathering {{ cloud }} inventory
+  tags:
+    - zookeeper
+    - vm
+  hosts: localhost
+  vars_files:
+    - vars/zookeeper.yml
+  gather_facts: no
+  tasks:
+    - include_vars: "{{ configuration }}"
+      when: configuration is defined
+      
+    - include_role:
+        name: aws
+        tasks_from: discover-vm
+      when: cloud == 'aws'
+
+# If we're dynamically provisioning, then do some final configuration on the
+# VMs that were just launched (assuming that we're not re-using existing VMs)
+- name: ZOOKEEPER OVERLAY | completing OS configuration
+  hosts: zookeeper
+  tags: vm
+  gather_facts: yes
+  vars_files:
+    - vars/zookeeper.yml
+  tasks:
+    - include_vars: "{{ configuration }}"
+      when: configuration is defined
+      
+    - include_role:
+        name: initialize-play
+      vars:
+        gather_facts: false
+        skip_network_restart: true
+
+    - block:
+      # then run the `preflight` role to finish the configuration of the nodes
+      # that were just allocated
+      - include_role:
+          name: preflight
+        vars:
+          mountpoint: "/data"
+
+      when:
+        - cloud is defined and (cloud == 'aws' or cloud == 'osp')
+
+# Then, deploy Zookeeper to the nodes in the zookeeper host group that was
+# passed in (if there is more than one node passed in, those nodes will be
+# configured as a single Zookeeper cluster)
+- name: ZOOKEEPER OVERLAY | installing base {{ application }} application
+  tags:
+    - vm
+    - zookeeper
+  hosts: zookeeper
+  gather_facts: no
+  vars_files:
+    - vars/zookeeper.yml
+  vars:
+    - combined_package_list: "{{ (default_packages|default([])) | union(zookeeper_package_list) | union((install_packages_by_tag|default({})).zookeeper|default([])) }}"
+    - zookeeper_nodes: "{{ groups['zookeeper'] }}"
+  tasks:
+    - include_vars: "{{ configuration }}"
+      when: configuration is defined
+      
+    # first, initialize the play by loading any `configuration` that may have
+    # been passed in, restarting the network on the target nodes (if we didn't
+    # run the preflight role, above), and determining the `data_iface` and
+    # `api_iface` values from the input `iface_description_array` (if one was
+    # passed in)
+    - include_role: 
+        name: initialize-play
+
+    # and setup the nodes to use the defined web proxy (if one is defined via a set
+    # of extra variables or through a set of environment variables in the shell
+    # that the playbook command is being run from)
+    - include_role:
+        name: http-proxy
+    
+    # now that we have all of the facts we need, provision the input nodes
+    - include_role: 
+        name: zookeeper

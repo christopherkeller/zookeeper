@@ -1,0 +1,43 @@
+# (c) 2016 DataNexus Inc.  All Rights Reserved.
+#
+# apply AWS zookeeper security group rules
+---
+- name: ZOOKEEPER OVERLAY | discovering {{ application }} instances
+  ec2_instance_facts:
+    region: "{{ region }}"
+    filters:
+      instance-state-name: running
+      "tag:Tenant": "{{ tenant }}"
+      "tag:Project": "{{ project }}"
+      "tag:Domain": "{{ domain }}" 
+      "tag:Application": "{{ application }}"
+      "tag:Cluster": "{{ cluster | default ('a') }}"
+      "tag:Dataflow": "{{ dataflow | default ('none') }}"
+  register: all_zookeeper_nodes
+  when: cloud == 'aws'
+
+# construct list of all interfaces attached to zookeeper nodes
+- set_fact:
+    zookeeper_interfaces: "{{ all_zookeeper_nodes.instances | map(attribute='network_interfaces') | list }}"
+  when: all_zookeeper_nodes.instances | length > 0
+
+# this is only necessary when modifying interface 0
+- name: ZOOKEEPER OVERLAY | get id of default security group
+  ec2_group_facts:
+    region: "{{ region }}"
+    filters:
+      group-name: "dnsg_{{ project }}_ssh_private_internal"
+      vpc-id: "{{ specified_vpc.vpcs.0.id }}"
+  register: sg_ssh_private
+  when: cloud =="aws"
+
+# apply zookeeper rule and the internal SSH rule 
+- name: ZOOKEEPER OVERLAY | applying {{ application }} security rules to interface 0
+  ec2_eni:
+    region: "{{ region }}"
+    eni_id: "{{ item.network_interface_id }}"
+    security_groups:
+      - "{{ sg_zookeeper.group_id }}"
+      - "{{ sg_ssh_private.security_groups.0.group_id }}"
+  with_items: "{{ zookeeper_interfaces }}"
+  when: item.attachment.device_index == 0

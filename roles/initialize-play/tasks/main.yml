@@ -3,14 +3,14 @@
 # first, load the config file (defaults to `config.yml` if not specified);
 # this will initialize the variables used in our playbook (and override any
 # values from the 'vars/{{application}}.yml' file that are redefined there)
-- name: Load configuration file
+- name: ZOOKEEPER OVERLAY | Load configuration file
   include_vars:
-    file: "{{config_file | default('config.yml')}}"
+    file: "{{ configuration | default('config.yml') }}"
 # now that we've loaded the configuration file, ensure that a value is set
 # for the internal_subnet parameter by setting it to the same value as the
 # external_subnet if it is undefined; if the external_subnet parameter is
 # undefined, then it's an error
-- name: Ensure that external_subnet is defined
+- name: ZOOKEEPER OVERLAY | Ensure that external_subnet is defined
   fail:
     msg: "The external_subnet parameter must be defined"
   run_once: true
@@ -26,14 +26,14 @@
       - { type: 'cidr', val: "{{internal_subnet}}", as_var: 'data_iface'}
       - { type: 'cidr', val: "{{external_subnet}}", as_var: 'api_iface'}
 # then, restart the network (unless the skip_network_restart was set)
-- name: Ensure the network interfaces are up on our input node(s)
+- name: ZOOKEEPER OVERLAY | Ensure the network interfaces are up on our input node(s)
   service:
     name: network
     state: restarted
   become: true
-  when: not (skip_network_restart is defined or skip_network_restart)
+#  when: not (skip_network_restart is defined or skip_network_restart)
 # and gather some facts about our input node(s)
-- name: Gather facts from the input node(s)
+- name: ZOOKEEPER OVERLAY | Gather facts from the input node(s)
   setup:
   when: gather_facts | default(true)
 # next, get a list of the network names (and the corresponding list of network
@@ -73,8 +73,3 @@
     iface_name: "{{api_iface}}"
     as_fact: "api_addr"
   when: (api_iface | default('')) != ''
-# and setup the nodes to use the defined web proxy (if one is defined via a set
-# of extra variables or through a set of environment variables in the shell
-# that the playbook command is being run from)
-- include_role:
-    name: http-proxy
