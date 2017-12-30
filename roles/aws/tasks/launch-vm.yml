@@ -25,7 +25,25 @@
     private_interface_acl: "{{ sg_ssh_private.group_id }}"
   when:
     - sg_ssh_private is defined
-      
+
+- name: ZOOKEEPER OVERLAY | creating closed security group
+  local_action:
+    module: ec2_group
+    name: "dnsg_{{ project }}_closed"
+    description: "restrict all inbound and unrestricted egress rules (ansible)"
+    vpc_id: "{{ specified_vpc.vpcs.0.id }}"
+    region: "{{ region }}"
+    rules_egress:
+      # Allow all outbound
+      - proto: all
+        cidr_ip: 0.0.0.0/0
+  register: sg_closed
+
+- set_fact:
+    public_interface_acl: "{{ sg_closed.group_id }}"
+  when:
+    - sg_closed is defined
+
 - block:    
   - name: ZOOKEEPER OVERLAY | searching for CentOS 7 AMI for specified region
     ec2_ami_find:
@@ -43,7 +61,7 @@
   when:
     - image is not defined
 
-- name: ZOOKEEPER OVERLAY | setting {{ key_path }}
+- name: ZOOKEEPER OVERLAY | setting key path to {{ key_path }}
   set_fact: key_path="{{ ansible_env.PWD }}"
   when: key_path is not defined
   
@@ -143,7 +161,7 @@
     subnet_id: "{{ external_subnet_id }}"
     device_index: 1
     attached: true
-    security_groups: "{{ sg_zookeeper.group_id }}"
+    security_groups: "{{ public_interface_acl }}"
     state: present
   register: public_eni
   with_items: "{{ ec2.instances }}"
