@@ -14,7 +14,7 @@ zookeeper_user: zookeeper
 zookeeper_group: zookeeper
 
 # the version and distribution URL
-zookeeper_version: "3.4.11"
+zookeeper_version: "3.4.12"
 zookeeper_url: "https://www.apache.org/dist/zookeeper/zookeeper-{{zookeeper_version}}/zookeeper-{{zookeeper_version}}.tar.gz"
 
 # path used to access private keys (defaults to the current working directory)
