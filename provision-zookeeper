@@ -7,6 +7,7 @@
     - zookeeper
     - vm
   hosts: localhost
+  connection: local
   vars_files:
     - vars/zookeeper.yml
   gather_facts: no
@@ -24,6 +25,7 @@
     - zookeeper
     - vm
   hosts: localhost
+  connection: local
   gather_facts: no
   tasks:
     - include_vars: "{{ configuration }}"
@@ -58,6 +60,7 @@
   tags:
     - zookeeper
   hosts: localhost
+  connection: local
   vars_files:
     - vars/zookeeper.yml
   gather_facts: no
@@ -75,6 +78,7 @@
     - zookeeper
     - vm
   hosts: localhost
+  connection: local
   vars_files:
     - vars/zookeeper.yml
   gather_facts: no
